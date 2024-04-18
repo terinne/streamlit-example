@@ -2,39 +2,56 @@ import altair as alt
 import numpy as np
 import pandas as pd
 import streamlit as st
+from sklearn.pipeline import Pipeline
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.svm import LinearSVC
 
-"""
-# Welcome to Streamlit!
+# read the data and clean it
+df_train = pd.read_csv("train.csv", encoding='unicode_escape')
+df_test = pd.read_csv("test.csv", encoding='latin1')
 
-Edit `/streamlit_app.py` to customize this app to your heart's desire :heart:.
-If you have any questions, checkout our [documentation](https://docs.streamlit.io) and [community
-forums](https://discuss.streamlit.io).
+df_train.drop(columns={'textID', 'selected_text', 'Time of Tweet', 'Age of User', 'Country', 'Population -2020', 'Land Area (Km²)', 'Density (P/Km²)'}, inplace=True)
+df_train.dropna(inplace=True)
 
-In the meantime, below is an example of what you can do with just a few lines of code:
-"""
+df_test.drop(columns={'textID', 'Time of Tweet', 'Age of User', 'Country', 'Population -2020', 'Land Area (Km²)', 'Density (P/Km²)'}, inplace=True)
+df_test.dropna(inplace=True)
 
-num_points = st.slider("Number of points in spiral", 1, 10000, 1100)
-num_turns = st.slider("Number of turns in spiral", 1, 300, 31)
+x_train = df_train['text']
+x_test = df_test['text']
+y_train = df_train['sentiment']
+y_test = df_test['sentiment']
 
-indices = np.linspace(0, 1, num_points)
-theta = 2 * np.pi * num_turns * indices
-radius = indices
+model = Pipeline([
+    ('tfidf', TfidfVectorizer()),
+    ('clf', LinearSVC())
+])
 
-x = radius * np.cos(theta)
-y = radius * np.sin(theta)
+model.fit(x_train, y_train)
 
-df = pd.DataFrame({
-    "x": x,
-    "y": y,
-    "idx": indices,
-    "rand": np.random.randn(num_points),
-})
+st.title('Sentiment Analysis App')
+st.divider()
+st.subheader('Insert your text, press submit and see the results!')
 
-st.altair_chart(alt.Chart(df, height=700, width=700)
-    .mark_point(filled=True)
-    .encode(
-        x=alt.X("x", axis=None),
-        y=alt.Y("y", axis=None),
-        color=alt.Color("idx", legend=None, scale=alt.Scale()),
-        size=alt.Size("rand", legend=None, scale=alt.Scale(range=[1, 150])),
-    ))
+user_input = st.text_input('Text', label_visibility='collapsed', placeholder='Write something...')
+
+def analyze():
+    global user_input
+    container_1.write(f'Text to analyze: {user_input}')
+    user_input = ""
+
+    result = model.predict([user_input])[0]
+
+    if result == "positive":
+        container_2.write(f'The result is {result}! :smile:')
+    elif result == "neutral":
+        container_2.write(f'The result is {result}! :neutral_face:')
+    elif result == "negative":
+        container_2.write(f'The result is {result}! :rage:')
+
+st.button('SUBMIT', use_container_width=True, on_click=analyze)
+
+container_1 = st.container(border=True)
+container_2 = st.container(border=True)
+
+    
+
